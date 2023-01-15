@@ -61,7 +61,7 @@ if (dir.exists("/kaggle/input/simulated-ehr-dataset/sample_db")){
 
 # ## Tracks
 
-# The basic element of Naryn is a `track` - a single numerical data element (e.g. Creatinine lab measurment) that is recorded for many patients at various time points. A track can be thought of as a very sparse two-dimensional matrix with a row for each patient in the database, and a column for each timepoint in the resolution of hours. Another way to think of a track is as a table with triplets of patient, timepoint and value: 
+# The basic element of Naryn is a `track` - a single numerical data element (e.g. Creatinine lab measurement) that is recorded for many patients at various time points. A track can be thought of as a very sparse two-dimensional matrix with a row for each patient in the database, and a column for each timepoint in the resolution of hours. Another way to think of a track is as a table with triplets of patient, timepoint and value: 
 #
 # |id|time   |lab.CREATININE.BLOOD|
 # |--|-------|--------------------|
@@ -92,9 +92,11 @@ emr_db.connect(db_dir)
 
 # + vscode={"languageId": "r"}
 head(emr_track.ls())
+# -
+
+# show number of available tracks in database:
 
 # + vscode={"languageId": "r"}
-# show number of available tracks in database
 length(emr_track.ls())
 # -
 
@@ -108,6 +110,8 @@ emr_track.ls("CREATININE")
 
 # > Note: Naryn supports connecting to multiple databases at the same time, by giving a vector of paths to `emr_db.connect`, see more in the 'Database' section of the [advanced vignette](https://tanaylab.github.io/naryn/articles/advanced.html).
 
+# _**Exercise:** list all the "RBC" tracks in the database_
+
 # ## Extract data from tracks
 
 # We can now go back to the Creatinine example and extract the data from the track. This can be done using the `emr_extract()` function which is the 'Swiss army knife' of the package. It can be used to extract data from a single track, or from multiple tracks, while applying various filters and transformations, but we will start with the simplest example of extracting the data from a single track:
@@ -117,7 +121,7 @@ creatinine_df <- emr_extract("lab.CREATININE.BLOOD")
 head(creatinine_df)
 # -
 
-# We can see that the data is returned as a data frame with four columns: id, time, ref and 'lab.CREATININE.BLOOD' which contains the values. The id column contains the patient id, the time column contains the time of the measurement in hours since 1/3/1867 00:00, and the value column contains the Creatinine measurment of the patient at each timepoint. 
+# We can see that the data is returned as a data frame with four columns: id, time, ref and 'lab.CREATININE.BLOOD' which contains the values. The id column contains the patient id, the time column contains the time of the measurement in hours since 1/3/1867 00:00, and the value column contains the Creatinine measurement of the patient at each timepoint. 
 #
 # For information regarding the ref column, see the 'Records and References' section in the [advanced vignette](https://tanaylab.github.io/naryn/articles/advanced.html).
 #
@@ -136,9 +140,12 @@ head(emr_extract("lab.CREATININE.BLOOD", names = "Creatinine"))
 # + vscode={"languageId": "r"}
 creatinine_df1 <- emr_extract("lab.CREATININE.BLOOD * 2", names = "Creatinine")
 head(creatinine_df1)
+
+# + [markdown] tags=[]
+# Note that the functions used in the track expression must be able to be applied to a vector of values and should return a vector of the same length.
 # -
 
-# Note that the functions used in the track expression must be able to be applied to a vector of values and should return a vector of the same length.
+# _**Exercise:** Extract BMI values. Reminder: $$BMI = weight/height^2$$_
 
 # #### Changing time to date
 
@@ -184,8 +191,12 @@ emr_vtrack.create("glucose_5y", "lab.GLUCOSE.BLOOD", time.shift = c(-years(5), 0
 
 # + vscode={"languageId": "r"}
 ckd_labs <- emr_extract(c("creatinine_5y", "glucose_5y"), iterator = "dx.icd9_585", names = c("Creatinine", "Glucose"))
-head(ckd_labs, n = 20)
+head(ckd_labs)
 # -
+
+# The available virtual tracks functions are listed at the `emr_vtrack.create` function documentation:
+
+?emr_vtrack.create
 
 # We would like to also know how long before the diagnosis each test was performed, so we will create an additional virtual track, this time with a function that computes the difference between the time of the diagnosis and the latest blood test. Also, we would like the time difference to be in the resolution of months, so we will give `emr_extract` a track expression that divides the time difference by 30 * 24 (the number of hours in a month), which is equivalent to the `month` function:
 
@@ -197,13 +208,14 @@ ckd_labs <- emr_extract(
     iterator = "dx.icd9_585",
     names = c("Creatinine", "Glucose", "Creatinine_d", "Glucose_d")
 )
-head(ckd_labs, n = 20)
-
+head(ckd_labs)
 # -
 
 # Yay! we got what we wanted, but something is still weird - we can see that some patients (and in this sampled database - most patients) have more than one diagnosis of a CKD. Many times, this is indeed the case - a patient can be diagnosed with a disease multiple times, but more commonly in EMR data - the same diagnosis is recorded multiple times, and what we actually want is the earliest diagnosis. In order to achieve that we would have to use *filters*.
 #
 # [^1]: Actually, *patient-time-reference* space, but this is explained in the advanced vignette.
+
+# _**Exercise:** Extract the earliest WBC values 5 years before the diagnosis of CKD._ 
 
 # ## Filters
 
@@ -230,6 +242,8 @@ head(ckd_labs)
 
 # Voila! every patient now has only the earliest diagnosis of CKD. 
 
+# _**Exercise:** Create a filter that would only allow patients that would have CKD in the **future**._ 
+
 # ### Value filters 
 
 # Filters can not only be used to exclude or include points by the mere existence of a point in the *patient-time space* (like the previous example), but also by the value of the point. For example, we can create a filter that would include only points where the Glucose was abnormal (say, above 100):
@@ -246,7 +260,7 @@ head(ckd_labs_abnormal_glucose)
 
 # -
 
-# > Exercise: why do we still get Glucose values of below 100? (hint: `vtrack` function)
+# _**Exercise:** why do we still get Glucose values of below 100? (hint: `vtrack` function)_
 
 # Another example is to include or exclude based on the value of a categorical track. For example, in order to include only patients that were diagnosed with stage iv of CKD (ICD9 code 585.4) we filter "dx.icd9_585" to include only points with value of "14" (see note below):
 
@@ -263,6 +277,8 @@ head(ckd_severe)
 
 # > NOTE: since ICD9 diagnosis codes have a tree like structure, and X.0, X.00 are both valid codes and must be distinguishable, the diagnosis tracks all include a prefix of 1 for the minor code, so X.0 will be translated to icd9_X and a value of 10 will be stored instead of 0.
 
+# _**Exercise:** Extract the creatinine and glucose values for patients with severe CKD **and** creatinine above 1.5_
+
 # ## Time range
 
 # Until now we learned how to use filters to exclude or include datapoints by their value or existence, but what if we want to include only points that are within a certain time range? 
@@ -277,6 +293,8 @@ ckd_df <- emr_extract(
     etime = emr_date2time(1, 1, 2022),
 )
 head(ckd_df)
+
+# _**Exercise:** Extract all the RBC test results that were conducted in 2011_
 
 # ## Define virtual tracks for age and sex
 
@@ -420,6 +438,8 @@ incidence %>%
     xlab("Age") + 
     geom_errorbar(width = 0.3) 
 
+# _**Exercise:** Compute the incidence rate of diabetes ("dx.250")_
+
 # ## Survival analysis
 
 # Next, we want to estimate the survival of CKD patients between the ages of 60 and 65 (not inclusive). We have a track called "patients.dod" which indicates the death of patients. We will start by computing the time from the disease diagnosis to death:
@@ -476,6 +496,8 @@ head(survival)
 
 fit <- survminer::surv_fit(survival::Surv(follow_time, status) ~ cohort, data = survival)
 survminer::ggsurvplot(fit, data = survival, xlab = "Time (years)", xlim = c(0, 10))
+
+# _**Exercise:** Plot the Kaplan-Meier of diabetes survival in age 55-60 ("dx.250")_
 
 # ## Time to outcome
 
@@ -538,6 +560,8 @@ survminer::ggcompetingrisks(
     ylim = c(0, 0.2)
 )
 # -
+
+# _**Exercise:** Repeat the above analysis to check if patients with high glucose values (>100) have a higher chance to be diagnosed with CKD_
 
 # ## Building a CKD predictor
 
@@ -707,6 +731,8 @@ test %>%
     count(class, score) %>%
     ggplot(aes(x = score, y = n, fill = factor(class))) +
     geom_bar(stat = "identity", position = "dodge")
+
+# _**Exercise:** Build a predictor for diabetes (dx.250)_
 
 # ## Additional examples
 
