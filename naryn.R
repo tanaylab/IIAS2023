@@ -29,8 +29,8 @@ ON_KAGGLE <- dir.exists("/kaggle")
 package_exists <- function(pkg) pkg %in% rownames(installed.packages())
 
 # install naryn if needed
-if (!package_exists("naryn")){
-    if (ON_KAGGLE){
+if (!package_exists("naryn")) {
+    if (ON_KAGGLE) {
         install.packages("/kaggle/input/d/aviezerl/naryn-source-code/naryn_2.6.14_R_x86_64-pc-linux-gnu.savta", repos = NULL)
     } else {
         install.packages("naryn")
@@ -40,8 +40,8 @@ if (!package_exists("naryn")){
 # + vscode={"languageId": "r"}
 # install the rest of the packages
 required_packages <- c("dplyr", "purrr", "ggplot2", "survminer", "survival", "cmprsk", "pROC", "xgboost")
-for (pkg in required_packages){
-    if (!package_exists(pkg)){
+for (pkg in required_packages) {
+    if (!package_exists(pkg)) {
         install.packages(pkg)
     }
 }
@@ -60,13 +60,13 @@ theme_set(theme_classic())
 #
 # Towards this vignette we are going to use a small database which was simulated to include an example of a typical EMR database. It can be downloaded from [here](https://naryn.s3.eu-west-1.amazonaws.com/naryn_example_db.tar.gz) or using the following code:
 
-if (ON_KAGGLE){
+if (ON_KAGGLE) {
     system("cp -r /kaggle/input/simulated-ehr-dataset/sample_db /kaggle/working/")
     db_dir <- "/kaggle/working/sample_db"
     emr_db.connect(db_dir)
     emr_db.reload()
 } else {
-    if (!dir.exists("sample_db")){
+    if (!dir.exists("sample_db")) {
         emr_download_example_data()
     }
     db_dir <- "sample_db"
@@ -160,7 +160,9 @@ head(creatinine_df1)
 # Note that the functions used in the track expression must be able to be applied to a vector of values and should return a vector of the same length.
 # -
 
-# _**Exercise:** Extract BMI values. Reminder: $$BMI = weight/height^2$$_
+# _**Exercise:** Extract BMI values._
+#
+# _The weight and height tracks are "LAB.WEIGHT" and "LAB.HEIGHT". Reminder: $$BMI = \frac{weight}{height^2}$$_
 
 # #### Changing time to date
 
@@ -272,7 +274,6 @@ ckd_labs_abnormal_glucose <- emr_extract(
     names = c("Creatinine", "Glucose", "Creatinine_dt", "Glucose_dt")
 )
 head(ckd_labs_abnormal_glucose)
-
 # -
 
 # Another example is to include or exclude based on the value of a categorical track. For example, in order to include only patients that were diagnosed with stage iv of CKD (ICD9 code 585.4) we filter "dx.icd9_585" to include only points with value of "14" (see note below). As the source for this filter is the same as our iterator, the time.shift used is the default c(0,0) which means it interrogates the same *patient-time-reference* data point.
@@ -300,9 +301,9 @@ head(ckd_severe)
 
 ckd_df <- emr_extract(
     c("creatinine_5y", "glucose_5y", "dx.icd9_585"),
-    iterator = "dx.icd9_585",    
+    iterator = "dx.icd9_585",
     names = c("Creatinine", "Glucose", "icd9_585"),
-    stime = emr_date2time(1, 1, 2008), 
+    stime = emr_date2time(1, 1, 2008),
     etime = emr_date2time(1, 1, 2022),
 )
 head(ckd_df)
@@ -313,7 +314,7 @@ head(ckd_df)
 
 # Patient *age* is an important factor in most settings. For example, say that we want to know the age of a patient at the time of their first diagnosis of CKD. We can do this by creating a virtual track that computes the difference in time between the time of the diagnosis (iterator time) and the time of birth (as defined in track 'patients.dob'). 
 #
-# We set the name of the virtual track to 'age' and define the source for the virtual track to 'patients.dob'. At each point of the iterator, we want to look backward in time as much as necessary (say - 120 years) and compute the time difference between the time of birth and the current time, so we set the `time.shift` to `c(-years(120), 0)` and the function to `dt2.earliest` (delta time between the iterator + time.shift[2] and time of earliest appearnce of 'patients.dob'):
+# We set the name of the virtual track to 'age' and define the source for the virtual track to 'patients.dob'. At each point of the iterator, we want to look backward in time as much as necessary (say - 120 years) and compute the time difference between the time of birth and the current time, so we set the `time.shift` to `c(-years(120), 0)` and the function to `dt2.earliest` (delta time between the iterator + time.shift[2] and time of earliest appearance of 'patients.dob'):
 
 # + vscode={"languageId": "r"}
 emr_vtrack.create("age", "patients.dob", time.shift = c(-years(120), 0), func = "dt2.earliest")
@@ -334,24 +335,25 @@ head(age_at_ckd_diag)
 emr_vtrack.create("sex", "patients.dob", time.shift = c(-years(120), 0), func = "earliest")
 # -
 
-emr_extract(c("age/year()", "sex"), iterator = "dx.icd9_585", name = c("age", "sex")) %>% 
-    mutate(sex = c("male", "female")[sex]) %>% 
-    ggplot(aes(x=age, color = sex, group = sex)) + geom_density()
+emr_extract(c("age/year()", "sex"), iterator = "dx.icd9_585", name = c("age", "sex")) %>%
+    mutate(sex = c("male", "female")[sex]) %>%
+    ggplot(aes(x = age, color = sex, group = sex)) +
+    geom_density()
 
 # In a similar way we can define filters for patient status, including the fact that patient was born, has died, has registered to the EMR or has left for good: 
 
-emr_filter.create('born', 'patients.dob', time.shift=c(-120,0)*year())
-emr_filter.create('dead', 'patients.dod', time.shift=c(-120,0)*year())
-emr_filter.create('registered', 'patients.status.register', time.shift=c(-120,0)*year())
-emr_filter.create('left_for_good', 'patients.status.lfg', time.shift=c(-120,0)*year())
+emr_filter.create("born", "patients.dob", time.shift = c(-120, 0) * year())
+emr_filter.create("dead", "patients.dod", time.shift = c(-120, 0) * year())
+emr_filter.create("registered", "patients.status.register", time.shift = c(-120, 0) * year())
+emr_filter.create("left_for_good", "patients.status.lfg", time.shift = c(-120, 0) * year())
 
 # We can use the same approach to define a virtual track for the onset of CKD instead of using the filter we defined above: 
 
-emr_vtrack.create('disease_onset', 'dx.icd9_585', time.shift=c(0,120)*year(), func='earliest.time')
+emr_vtrack.create("disease_onset", "dx.icd9_585", time.shift = c(0, 120) * year(), func = "earliest.time")
 
 # And finally, we can define a filter for the fact that the patient will have the disease in the future:
 
-emr_filter.create('will_have_disease', 'dx.icd9_585', time.shift=c(0,120)*year())
+emr_filter.create("will_have_disease", "dx.icd9_585", time.shift = c(0, 120) * year())
 
 # ## Incidence rate
 
@@ -379,18 +381,18 @@ stime <- emr_date2time(1, 1, 2008) # taking 3 years of history
 etime <- emr_date2time(1, 1, 2022) # end of db
 
 disease_count <- emr_dist(
-        "age/year()", 
-        age_breaks, 
-        "sex", 
-        NULL, 
-        iterator = "dx.icd9_585",    
-        filter = "!ckd_in_past",
-        right = FALSE, 
-        dataframe = TRUE, 
-        names = c("age", "sex"), 
-        stime = stime,
-        etime = etime
-    ) %>% rename(n_sick = n)
+    "age/year()",
+    age_breaks,
+    "sex",
+    NULL,
+    iterator = "dx.icd9_585",
+    filter = "!ckd_in_past",
+    right = FALSE,
+    dataframe = TRUE,
+    names = c("age", "sex"),
+    stime = stime,
+    etime = etime
+) %>% rename(n_sick = n)
 tail(disease_count)
 # -
 
@@ -411,16 +413,16 @@ emr_filter.create("has_disease", "dx.icd9_585", time.shift = c(-120, 0) * year()
 # In addition, we count only patients that were born, didn't die yet and are currently registered to the system. This would be enforced using filter parameter. 
 
 full_pop <- emr_dist(
-    "age/year()", 
-    age_breaks, 
-    "sex", 
+    "age/year()",
+    age_breaks,
+    "sex",
     NULL,
     iterator = month(),
-    filter = "born & !dead & registered & !left_for_good & !has_disease", 
-    right = FALSE, 
-    dataframe = TRUE, 
-    names = c("age", "sex"), 
-    stime = stime, 
+    filter = "born & !dead & registered & !left_for_good & !has_disease",
+    right = FALSE,
+    dataframe = TRUE,
+    names = c("age", "sex"),
+    stime = stime,
     etime = etime
 ) %>%
     rename(man_months = n)
@@ -444,12 +446,12 @@ incidence <- disease_count %>%
 head(incidence)
 # -
 
-incidence %>% 
+incidence %>%
     ggplot(aes(x = age, y = incidence, ymin = lower_ci, ymax = upper_ci, group = sex, color = sex)) +
     geom_line() +
-    ylab("Incidence per 100k") + 
-    xlab("Age") + 
-    geom_errorbar(width = 0.3) 
+    ylab("Incidence per 100k") +
+    xlab("Age") +
+    geom_errorbar(width = 0.3)
 
 # _**Exercise:** Compute the incidence rate of diabetes ("dx.250")_
 
@@ -462,7 +464,7 @@ emr_filter.create("male_60_65", "patients.dob", time.shift = c(-65, -60) * year(
 
 emr_vtrack.create("survival", "patients.dod", time.shift = c(0, 120) * 365 * 24, func = "dt1.earliest")
 disease_survival <- emr_extract(c("age/year()", "sex", "survival"),
-    iterator = "dx.icd9_585",    
+    iterator = "dx.icd9_585",
     stime = stime, etime = etime,
     filter = "!ckd_in_past & male_60_65",
     names = c("age", "sex", "survival")
@@ -477,25 +479,25 @@ head(disease_survival)
 #
 # We will use the same filters we used in the incidence rate analysis above.
 
-gen_pop_survival <- purrr::map_df(60:64, ~ 
+gen_pop_survival <- purrr::map_df(60:64, ~
     emr_extract(
         c("age/year()", "sex", "survival"),
         iterator = list(.x * year(), "patients.dob"),
         stime = stime, etime = etime,
         filter = "!has_disease & born & !dead & registered & !left_for_good & male_60_65",
         names = c("age", "sex", "survival")
-)) 
+    ))
 
 # We prefer not to use a patient twice (in different ages):
 
-gen_pop_survival <- gen_pop_survival%>%
+gen_pop_survival <- gen_pop_survival %>%
     sample_n(n()) %>%
     distinct(id, .keep_all = T)
 head(gen_pop_survival)
 
 # We can now compute the Kaplan-Meier survival curve. 
 #
-# We will start by combining the two data frames and reshape it to the format fo the survival function. Note that we apply censoring to reflect the latest update of the database which was at Jan 1, 2021:
+# We will start by combining the two data frames and reshape it to the format of the survival function. Note that we apply censoring to reflect the latest update of the database which was at Jan 1, 2021:
 
 survival <- disease_survival %>%
     mutate(cohort = "disease") %>%
@@ -534,12 +536,12 @@ head(cohort)
 
 emr_filter.create("age_60_65", "patients.dob", time.shift = c(-65, -60) * year())
 emr_vtrack.create(
-    "time_to_disease", 
-    "dx.icd9_585", 
-    time.shift = c(0, 120) * year(), 
-    func = "dt1.earliest", 
+    "time_to_disease",
+    "dx.icd9_585",
+    time.shift = c(0, 120) * year(),
+    func = "dt1.earliest",
     filter = "!ckd_in_past"
-)    
+)
 time_to_outcome <- emr_extract(
     c("age/year()", "sex", "survival", "time_to_disease"),
     iterator = cohort,
@@ -551,7 +553,7 @@ head(time_to_outcome)
 
 # We will encode the event of CKD as `1` and the event of death as `2`:
 
-time_to_outcome <- time_to_outcome %>% 
+time_to_outcome <- time_to_outcome %>%
     mutate(
         follow_time = ifelse(!is.na(survival), survival, (emr_date2time(1, 1, 2021) - time)),
         follow_time = ifelse(!is.na(time_to_disease), time_to_disease, follow_time),
@@ -566,12 +568,12 @@ head(time_to_outcome)
 # + tags=[]
 fit <- cmprsk::cuminc(time_to_outcome$follow_time, time_to_outcome$status, group = time_to_outcome$cohort)
 survminer::ggcompetingrisks(
-    fit = fit, 
-    multiple_panels = FALSE, 
-    main = "", 
-    xlab = "Time (years)", 
-    ylab = "Cumulative incidence (%)", 
-    xlim = c(0, 5), 
+    fit = fit,
+    multiple_panels = FALSE,
+    main = "",
+    xlab = "Time (years)",
+    ylab = "Cumulative incidence (%)",
+    xlim = c(0, 5),
     ylim = c(0, 0.2)
 )
 # -
@@ -584,23 +586,23 @@ survminer::ggcompetingrisks(
 
 # #### Sample controls
 
-# One of the important decisions when building a predictor is defining the control. Minimally, we probabily need to sample patients that are similar on age and sex, but many times we might want to enforce other covariates such as the lack of a disease or number of available tests. 
+# One of the important decisions when building a predictor is defining the control. Minimally, we probably need to sample patients that are similar on age and sex, but many times we might want to enforce other covariates such as the lack of a disease or number of available tests. 
 #
 # For this example, we sample control based on age, sex, and the calendaric year. The calendaric year is important in many cases as standard care / distribution of the population changes over time.
 #
 # We will compute the distribution of age, sex and calendaric year for the patients who had the disease, and then sample control using this distribution:
 
-disease <- emr_extract("dx.icd9_585", filter = "!ckd_in_past") 
+disease <- emr_extract("dx.icd9_585", filter = "!ckd_in_past")
 cohort_dist <- emr_dist(
-    "age/year()", 
-    20:90, 
-    "sex", 
-    NULL, 
-    "emr_time2year(EMR_TIME)", 
-    2008:2022, 
-    iterator = disease, 
-    names = c("age", "sex", "year"), 
-    dataframe = TRUE, 
+    "age/year()",
+    20:90,
+    "sex",
+    NULL,
+    "emr_time2year(EMR_TIME)",
+    2008:2022,
+    iterator = disease,
+    names = c("age", "sex", "year"),
+    dataframe = TRUE,
     right = FALSE
 ) %>%
     mutate(
@@ -620,22 +622,22 @@ control <- data.frame(id = c(), time = c())
 # go over each combination of age, sex and calendaric year
 for (i in 1:nrow(cohort_dist)) {
     # exclude the patients with the disease and those that we already selected
-    emr_filter.create("fexclude_patients", data.frame(id = exclude_patients, time = emr_date2time(1, 1, 2002)), time.shift = c(-120, 120) * year()) 
-    
+    emr_filter.create("fexclude_patients", data.frame(id = exclude_patients, time = emr_date2time(1, 1, 2002)), time.shift = c(-120, 120) * year())
+
     # create a filter for the current sex and age
     emr_filter.create("fsex_age", "patients.dob", time.shift = c(-cohort_dist$age[i] - 1, -cohort_dist$age[i]) * year(), val = as.numeric(cohort_dist$sex[i]))
-    
-    # extract patients at the given age and sex 
+
+    # extract patients at the given age and sex
     pool <- emr_extract("sex",
         iterator = cohort_dist$age[i] * year(), # this basically says - take only a single point at the current age
         filter = "fsex_age & !fexclude_patients",
         stime = emr_date2time(1, 1, cohort_dist$year[i]),
         etime = emr_date2time(1, 1, cohort_dist$year[i] + 1)
     )
-    
+
     # sample patients+time and add to the control
     control <- rbind(control, pool %>% sample_n(cohort_dist$n[i] * cf))
-    
+
     exclude_patients <- c(disease$id, control$id)
     emr_filter.rm("fexclude_patients")
     emr_filter.rm("fsex_age")
@@ -706,16 +708,16 @@ watchlist <- list(train = xgb_train, test = xgb_test)
 
 # fit XGBoost model and display training and testing data at each round
 model <- xgb.train(
-    data = xgb_train, 
-    booster = "gbtree", 
-    objective = "binary:logistic", 
-    max.depth = 3, 
-    subsample = 0.5, 
-    eta = 0.07, 
-    min_child_weight = 1, 
-    gamma = 0, 
-    eval_metric = "auc", 
-    watchlist = watchlist, 
+    data = xgb_train,
+    booster = "gbtree",
+    objective = "binary:logistic",
+    max.depth = 3,
+    subsample = 0.5,
+    eta = 0.07,
+    min_child_weight = 1,
+    gamma = 0,
+    eval_metric = "auc",
+    watchlist = watchlist,
     nrounds = 100
 )
 model
@@ -932,7 +934,6 @@ age_dist_2020 <- emr_dist("age/year()", 0:120, "sex", NULL,
     right = FALSE
 )
 head(age_dist_2020 %>% filter(n > 0))
-
 # -
 
 # We can plot the distribution:
@@ -947,7 +948,6 @@ age_dist_2020 %>%
     geom_col() +
     facet_wrap(~sex) +
     theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
-
 # -
 
 
