@@ -22,11 +22,26 @@
 
 # + [markdown] tags=[]
 # ### Install packages if needed
+# -
+
+# utility functions
+ON_KAGGLE <- dir.exists("/kaggle")
+package_exists <- function(pkg) pkg %in% rownames(installed.packages())
+
+# install naryn if needed
+if (!package_exists("naryn")){
+    if (ON_KAGGLE){
+        install.packages("/kaggle/input/d/aviezerl/naryn-source-code/naryn_2.6.14_R_x86_64-pc-linux-gnu.savta", repos = NULL)
+    } else {
+        install.packages("naryn")
+    }
+}
 
 # + vscode={"languageId": "r"}
-required_packages <- c("naryn", "dplyr", "purrr", "ggplot2", "survminer", "survival", "cmprsk", "pROC", "xgboost")
+# install the rest of the packages
+required_packages <- c("dplyr", "purrr", "ggplot2", "survminer", "survival", "cmprsk", "pROC", "xgboost")
 for (pkg in required_packages){
-    if (!(pkg %in% rownames(installed.packages()))){
+    if (!package_exists(pkg)){
         install.packages(pkg)
     }
 }
@@ -45,15 +60,15 @@ theme_set(theme_classic())
 #
 # Towards this vignette we are going to use a small database which was simulated to include an example of a typical EMR database. It can be downloaded from [here](https://naryn.s3.eu-west-1.amazonaws.com/naryn_example_db.tar.gz) or using the following code:
 
-# + vscode={"languageId": "r"}
-if (!dir.exists("sample_db") && !dir.exists("/kaggle/input/simulated-ehr-dataset/sample_db")){
-    emr_download_example_data()
-}
-# -
-
-if (dir.exists("/kaggle/input/simulated-ehr-dataset/sample_db")){
-    db_dir <- "/kaggle/input/simulated-ehr-dataset/sample_db"
+if (ON_KAGGLE){
+    system("cp -r /kaggle/input/simulated-ehr-dataset/sample_db /kaggle/working/")
+    db_dir <- "/kaggle/working/sample_db"
+    emr_db.connect(db_dir)
+    emr_db.reload()
 } else {
+    if (!dir.exists("sample_db")){
+        emr_download_example_data()
+    }
     db_dir <- "sample_db"
 }
 
@@ -246,21 +261,18 @@ head(ckd_labs)
 
 # ### Value filters 
 
-# Filters can not only be used to exclude or include points by the mere existence of a point in the *patient-time space* (like the previous example), but also by the value of the point. For example, we can create a filter that would include only points where the Glucose was abnormal (say, above 100):
+# Filters can not only be used to exclude or include points by the mere existence of a point in the *patient-time space* (like the previous example), but also by the value of the point. For example, we can create a filter that would include only points where the latest Glucose test (in 5 years time period) was abnormal (say, above 100):
 
 # + vscode={"languageId": "r"}
 emr_filter.create("abnormal_glucose", "glucose_5y", val = 100, operator = ">")
 ckd_labs_abnormal_glucose <- emr_extract(
     c("creatinine_5y", "glucose_5y", "creatinine_5y_d/month()", "glucose_5y_d/month()"),
     iterator = "dx.icd9_585",
-    filter = "!ckd_in_past & glucose_5y",
+    filter = "!ckd_in_past & abnormal_glucose",
     names = c("Creatinine", "Glucose", "Creatinine_d", "Glucose_d")
 )
 head(ckd_labs_abnormal_glucose)
-
 # -
-
-# _**Exercise:** why do we still get Glucose values of below 100? (hint: `vtrack` function)_
 
 # Another example is to include or exclude based on the value of a categorical track. For example, in order to include only patients that were diagnosed with stage iv of CKD (ICD9 code 585.4) we filter "dx.icd9_585" to include only points with value of "14" (see note below):
 
