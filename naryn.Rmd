@@ -8,9 +8,9 @@ jupyter:
       format_version: '1.2'
       jupytext_version: 1.11.4
   kernelspec:
-    display_name: R 4.2.1
+    display_name: R 4.0.3
     language: R
-    name: r_4.2.1
+    name: ir
 ---
 
 # Getting started with naryn
@@ -177,9 +177,9 @@ creatinine_df %>%
 ## Iterators and virtual tracks
 
 
-In the previous example we extracted the data from a single track, what happens if we want to extract data from multiple tracks at once? For example, we would want to extract the Creatinine and blood Glucose levels of patients which had Chronic Kidney Disease (CKD), 5 years before their diagnosis. In order to achieve this we need to introduce the concept of *iterators*. 
+In the previous example we extracted the data from a single track, what happens if we want to extract data from multiple tracks at once? For example, we want to extract both Creatinine and blood Glucose levels of patients which had Chronic Kidney Disease (CKD), 5 years before their diagnosis. In order to achieve this we need to introduce the concept of *iterators*. 
 
-An iterator is a set of points in the *patient-time space*[^1] that defines the way in which naryn traverses the database. In the Creatinine example, the iterator was simply the set of all *patient-time* points that were included in the track, but now - we would want our point-of-view to be the CKD diagnosis so we would set the iterator to the track of ICD9 code 585 `dx.icd9_585`: 
+An iterator is a set of points in the *patient-time space*[^1] that defines the way in which naryn traverses the database. In the Creatinine example, the iterator was simply the set of all *patient-time* points that were included in the track, but now - we want our point-of-view to be the CKD diagnosis so we set the iterator to the track of ICD9 code 585 `dx.icd9_585`: 
 
 ```{r vscode={'languageId': 'r'}}
 ckd_labs <- emr_extract(c("lab.CREATININE.BLOOD", "lab.GLUCOSE.BLOOD"), iterator = "dx.icd9_585")
@@ -195,7 +195,7 @@ CKD diagnosis, and the Creatinine and RBC tests were not conducted at the exact 
 
 This can be done using a *virtual track*. A virtual track is a way to tell naryn how to compute the value of a track when at a specific point in the *patient-time space*. It is created using the `emr_virtual_track()` function, which tells naryn how to shift the time for a given track (1, `time.shift`) and which function to apply to the values of the track (2, `func`). 
 
-Note that the time shift is always in reference to the *iterator*. So for example, in our case we would like to look at an Creatinine / Glucose measurement 5 years before the diagnosis. If our iterator is at the time of the CKD diagnosis, we want to look at a time window that starts 5 years before and ends at the time of diagnosis:
+Note that the time shift is always in reference to the *iterator*. So for example, in our case we would like to look at Creatinine / Glucose measurement 5 years before the diagnosis. If our iterator is at the time of the CKD diagnosis, we want to look at a time window that starts 5 years before and ends at the time of diagnosis:
 
 
 ```{r vscode={'languageId': 'r'}}
@@ -212,21 +212,21 @@ ckd_labs <- emr_extract(c("creatinine_5y", "glucose_5y"), iterator = "dx.icd9_58
 head(ckd_labs)
 ```
 
-The available virtual tracks functions are listed at the `emr_vtrack.create` function documentation:
+The available virtual tracks functions are listed in the `emr_vtrack.create` function documentation:
 
 ```{r}
 ?emr_vtrack.create
 ```
 
-We would like to also know how long before the diagnosis each test was performed, so we will create an additional virtual track, this time with a function that computes the difference between the time of the diagnosis and the latest blood test. Also, we would like the time difference to be in the resolution of months, so we will give `emr_extract` a track expression that divides the time difference by 30 * 24 (the number of hours in a month), which is equivalent to the `month` function:
+We would also like to know how long before the diagnosis each test was performed, so we will create an additional virtual track, this time with a function that computes the difference in time between the time of the diagnosis and the latest blood test. Also, we would like the time difference to be in the resolution of months, so we will give `emr_extract` a track expression that divides the time difference by 30 * 24 (the number of hours in a month), which is equivalent to the `month` function:
 
 ```{r vscode={'languageId': 'r'}}
-emr_vtrack.create("creatinine_5y_d", "lab.CREATININE.BLOOD", time.shift = c(-years(5), 0), func = "dt2.latest")
-emr_vtrack.create("glucose_5y_d", "lab.GLUCOSE.BLOOD", time.shift = c(-years(5), 0), func = "dt2.latest")
+emr_vtrack.create("creatinine_5y_dt", "lab.CREATININE.BLOOD", time.shift = c(-years(5), 0), func = "dt2.latest")
+emr_vtrack.create("glucose_5y_dt", "lab.GLUCOSE.BLOOD", time.shift = c(-years(5), 0), func = "dt2.latest")
 ckd_labs <- emr_extract(
-    c("creatinine_5y", "glucose_5y", "creatinine_5y_d/month()", "glucose_5y_d/month()"),
+    c("creatinine_5y", "glucose_5y", "creatinine_5y_dt/month()", "glucose_5y_dt/month()"),
     iterator = "dx.icd9_585",
-    names = c("Creatinine", "Glucose", "Creatinine_d", "Glucose_d")
+    names = c("Creatinine", "Glucose", "Creatinine_dt", "Glucose_dt")
 )
 head(ckd_labs)
 ```
@@ -242,7 +242,7 @@ _**Exercise:** Extract the earliest WBC values 5 years before the diagnosis of C
 ## Filters
 
 
-A *filter* is a logical condition that is applied to the *iterator* in order to decide which points to include and which to exclude. In our case we want to include only the earliest diagnosis of CKD, so we would use the `emr_filter.create` function to create a filter that would exclude all patient-time points that had a diagnosis of CKD prior to the current point:
+A *filter* is a logical condition that is applied to the *iterator* in order to decide which points to include and which to exclude. In our case we want to include only the earliest diagnosis of CKD, so we use the `emr_filter.create` function to create a filter that excludes all patient-time points that had already have a diagnosis of CKD at an earlier time:
 
 ```{r vscode={'languageId': 'r'}}
 emr_filter.create("ckd_in_past", "dx.icd9_585", time.shift = c(-years(120), -1))
@@ -254,9 +254,9 @@ We will now apply the filter to our query:
 
 ```{r vscode={'languageId': 'r'}}
 ckd_labs <- emr_extract(
-    c("creatinine_5y", "glucose_5y", "creatinine_5y_d/month()", "glucose_5y_d/month()"),
+    c("creatinine_5y", "glucose_5y", "creatinine_5y_dt/month()", "glucose_5y_dt/month()"),
     iterator = "dx.icd9_585",
-    names = c("Creatinine", "Glucose", "Creatinine_d", "Glucose_d"),
+    names = c("Creatinine", "Glucose", "Creatinine_dt", "Glucose_dt"),
     filter = "!ckd_in_past"
 )
 
@@ -266,30 +266,27 @@ head(ckd_labs)
 Voila! every patient now has only the earliest diagnosis of CKD. 
 
 
-_**Exercise:** Create a filter that would only allow patients that would have CKD in the **future**._ 
+_**Exercise:** Create a filter that includes only patients that will have CKD in the **future**._ 
 
 
 ### Value filters 
 
 
-Filters can not only be used to exclude or include points by the mere existence of a point in the *patient-time space* (like the previous example), but also by the value of the point. For example, we can create a filter that would include only points where the Glucose was abnormal (say, above 100):
+In addition to requiring that a data point exists in the *patient-time space* (like the previous example), filters may also be used to require specific value restreictions. For example, we can create a filter that includes only points where the latest 5-year Glucose was abnormal (say, above 100):
 
 ```{r vscode={'languageId': 'r'}}
 emr_filter.create("abnormal_glucose", "glucose_5y", val = 100, operator = ">")
 ckd_labs_abnormal_glucose <- emr_extract(
-    c("creatinine_5y", "glucose_5y", "creatinine_5y_d/month()", "glucose_5y_d/month()"),
+    c("creatinine_5y", "glucose_5y", "creatinine_5y_dt/month()", "glucose_5y_dt/month()"),
     iterator = "dx.icd9_585",
-    filter = "!ckd_in_past & glucose_5y",
-    names = c("Creatinine", "Glucose", "Creatinine_d", "Glucose_d")
+    filter = "!ckd_in_past & abnormal_glucose",
+    names = c("Creatinine", "Glucose", "Creatinine_dt", "Glucose_dt")
 )
 head(ckd_labs_abnormal_glucose)
 
 ```
 
-_**Exercise:** why do we still get Glucose values of below 100? (hint: `vtrack` function)_
-
-
-Another example is to include or exclude based on the value of a categorical track. For example, in order to include only patients that were diagnosed with stage iv of CKD (ICD9 code 585.4) we filter "dx.icd9_585" to include only points with value of "14" (see note below):
+Another example is to include or exclude based on the value of a categorical track. For example, in order to include only patients that were diagnosed with stage iv of CKD (ICD9 code 585.4) we filter "dx.icd9_585" to include only points with value of "14" (see note below). As the source for this filter is the same as our iterator, the time.shift used is the default c(0,0) which means it interrogates the same *patient-time-reference* data point.
 
 ```{r vscode={'languageId': 'r'}}
 emr_filter.create("severe", "dx.icd9_585", val = 14)
@@ -305,7 +302,7 @@ head(ckd_severe)
 > NOTE: since ICD9 diagnosis codes have a tree like structure, and X.0, X.00 are both valid codes and must be distinguishable, the diagnosis tracks all include a prefix of 1 for the minor code, so X.0 will be translated to icd9_X and a value of 10 will be stored instead of 0.
 
 
-_**Exercise:** Extract the creatinine and glucose values for patients with severe CKD **and** creatinine above 1.5_
+_**Exercise:** Extract the creatinine and glucose values for patients with severe CKD **and** 5-year latest creatinine above 1.5_
 
 
 ## Time range
@@ -313,7 +310,7 @@ _**Exercise:** Extract the creatinine and glucose values for patients with sever
 
 Until now we learned how to use filters to exclude or include datapoints by their value or existence, but what if we want to include only points that are within a certain time range? 
 
-For example, in many EHR databases the diagnoses in beginning of the database do not reflect the actual time the diagnosis was given, or we know that there was a change in the standard care at a certain year. In such cases we can use the `stime` and `etime` arguments which limit the query to points that are between the given start and end times: 
+For example, in many EHR databases the diagnoses in the beginning of the database do not reflect the actual time the diagnosis was given, or we know that there was a change in the standard care at a certain year. In such cases we can use the `stime` and `etime` arguments which limit the query to points that are between the given start and end times: 
 
 ```{r}
 ckd_df <- emr_extract(
@@ -332,9 +329,9 @@ _**Exercise:** Extract all the RBC test results that were conducted in 2011_
 ## Define virtual tracks for age and sex
 
 
-Given what we learned about iterators, virtual tracks and filters, how would we extract the *age* of a patient at a given timepoint? For example, say that we want to know the age of a patient at the time of their first diagnosis of CKD. We can do this by creating a virtual track that computes the difference between the time of the diagnosis and the time of birth. 
+Patient *age* is an important factor in most settings. For example, say that we want to know the age of a patient at the time of their first diagnosis of CKD. We can do this by creating a virtual track that computes the difference in time between the time of the diagnosis (iterator time) and the time of birth (as defined in track 'patients.dob'). 
 
-A virtual track needs 4 things - name, source, time shift and function. We should set the name to "age", the source to "patients.dob" and at each point of the iterator we would like to go backward in time a maximal amount (say - 120 years) and compute the time difference between the point and the birth, so we will set the `time.shift` to `c(-years(120), 0)` and the function to `dt2.earliest`:
+We set the name of the virtual track to 'age' and define the source for the virtual track to 'patients.dob'. At each point of the iterator, we want to look backward in time as much as necessary (say - 120 years) and compute the time difference between the time of birth and the current time, so we set the `time.shift` to `c(-years(120), 0)` and the function to `dt2.earliest` (delta time between the iterator + time.shift[2] and time of earliest appearnce of 'patients.dob'):
 
 ```{r vscode={'languageId': 'r'}}
 emr_vtrack.create("age", "patients.dob", time.shift = c(-years(120), 0), func = "dt2.earliest")
@@ -343,11 +340,11 @@ emr_vtrack.create("age", "patients.dob", time.shift = c(-years(120), 0), func = 
 We can now extract the age of the patient at the time of their first diagnosis of CKD in the resolution of years: 
 
 ```{r vscode={'languageId': 'r'}}
-age_at_ckd_diag <- emr_extract("age/year()", iterator = "dx.icd9_585", name = "age")
+age_at_ckd_diag <- emr_extract("age/year()", iterator = "dx.icd9_585", filter = "!ckd_in_past", name = "age")
 head(age_at_ckd_diag)
 ```
 
-Sex can be defined in a similar way going backward in time and taking the earliest value at the "patients.dob" track:
+Sex can be defined in a similar way going backward in time and taking the earliest **value** at the "patients.dob" track:
 
 
 
@@ -361,7 +358,7 @@ emr_extract(c("age/year()", "sex"), iterator = "dx.icd9_585", name = c("age", "s
     ggplot(aes(x=age, color = sex, group = sex)) + geom_density()
 ```
 
-We can define in the same way filters for other tracks, such as the time of death of a patient or the fact that they registered to the DB or left for good: 
+In a similar way we can define filters for patient status, including the fact that patient was born, has died, has registered to the EMR or has left for good: 
 
 ```{r}
 emr_filter.create('born', 'patients.dob', time.shift=c(-120,0)*year())
@@ -385,14 +382,14 @@ emr_filter.create('will_have_disease', 'dx.icd9_585', time.shift=c(0,120)*year()
 ## Incidence rate
 
 
-Next, we would want to compute the incidence rate of CKD, for each age and sex. The formula for incidence rate is: 
+Next, we want to compute the incidence rate of CKD, for each age and sex. The formula for incidence rate is: 
 
 $$ (New Cases_{a,s}) / (Population_{a,s} x Timeframe) $$
 
 $$a = age, s = sex$$
 
 
-The formula may appear straightforward, but it can be challenging to implement in traditional databases, particularly when computing the denominator, which requires counting the age and sex of all patients in the system. An alternative approach, known as the "index-date" method, is often used, in which the calculation is performed only for patients at a specific point in time, rather than the entire database. This approach can result in a small number of cases, making it difficult to stratify the computation based on age and sex.
+The formula may appear straightforward, but it can be challenging to implement in traditional databases, particularly when computing the denominator, which requires counting the age and sex of all patients in the system across time. An alternative approach, known as the "index-date" method, is often used, in which the calculation is performed only for patients at a specific point in time, rather than the entire database. This approach can result in a small number of cases, making it difficult to stratify the computation based on age and sex.
 
 So how can we use `naryn` to compute this?
 
@@ -433,9 +430,9 @@ tail(disease_count)
 #### The denominator 
 <!-- #endregion -->
 
-In order to calculate the denominator, we would have to sum the 'man-months' we have in the system. To do that we would use another type of iterator called `beat iterator`. A beat iterator goes over all the patient in the system every "time beat", for example, in our case, every month. 
+In order to calculate the denominator, we have to sum the 'man-months' we have in the system. To do that we  use another type of iterator called `beat iterator`. A beat iterator goes over all the patient in the system every "time beat", for example, in our case, every month. 
 
-We would have to count only patients that did not have the disease yet (although we allow them to get it in the future):
+We have to count only patients that did not have the disease yet (but may to get it in the future):
 
 ```{r}
 emr_filter.create("has_disease", "dx.icd9_585", time.shift = c(-120, 0) * year())
@@ -513,6 +510,9 @@ disease_survival <- emr_extract(c("age/year()", "sex", "survival"),
 head(disease_survival)
 ```
 
+> NOTE: Survival analysis is very sensitive to patient age and sex. This is why for this example we focus on males age 60-65.
+
+
 The `NA` values indicate that the patient did not die yet. 
 
 We now need to compute the survival of the "background" patients. We want to go over all the patients at ages 60-65, and compute their time until death ("survival" virtual track). To do that we can use an `extended beat iterator`, which, as its name suggests, is a variation on the beat iterator which aligns the beat to a set of points. In our case we will align the points on their time of birth ("patients.dob") and add the number of years for each patient (e.g. 60) to extract the data at each patient's birthday. 
@@ -568,7 +568,7 @@ _**Exercise:** Plot the Kaplan-Meier of diabetes survival in age 55-60 ("dx.250"
 ## Time to outcome
 
 
-Another type of analysis we can do is compute the distribution of time to outcome. Say, for example, that we want to check if patients with high Creatinine levels are more likely to be diagnosed with CKD. We will again focus our analysis on ages 60-65. 
+Another type of analysis we can do is to compute the distribution of time to outcome. Say, for example, that we want to check if patients with high Creatinine levels are more likely to be diagnosed with CKD. We will again focus our analysis on ages 60-65, taking into account the change in incidence rate of CKD as a function of age. 
 
 
 We will start by extracting the high and low creatinine tests. We will do it using `emr_screen` which instead of extracting the information from a track expression, returns the patient+time points that satisfy a condition:
@@ -643,17 +643,17 @@ _**Exercise:** Repeat the above analysis to check if patients with high glucose 
 ## Building a CKD predictor
 
 
-Now that we looked at the data a bit, we would like to create a model that would try to predict CKD from the EHR data we have 5 year before the diagnosis.  
+Now that we looked at the data a bit, we would like to create a 1-year prediction model for CKD. The model will take into account the age and sex of the patient along with lab test measurements sampled between 5 years and 1 years prior to diagnosis.
 
 
 #### Sample controls
 
 
-One of the important decisions when building a predictor is defining the control. Minimally, we would like to sample patients that are similar on age and sex, but many times we would want to enforce other parameters such as the lack of a disease or number of available tests. 
+One of the important decisions when building a predictor is defining the control. Minimally, we probabily need to sample patients that are similar on age and sex, but many times we might want to enforce other covariates such as the lack of a disease or number of available tests. 
 
-For this example, we would sample based on age, sex, and the calendaric year. The calendaric year is important in many cases as standard care / distribution of the population changes over time.
+For this example, we sample control based on age, sex, and the calendaric year. The calendaric year is important in many cases as standard care / distribution of the population changes over time.
 
-We will compute the distribution of age, sex and calendaric year for the patient who had the disease, and then sample control using this distribution:
+We will compute the distribution of age, sex and calendaric year for the patients who had the disease, and then sample control using this distribution:
 
 ```{r}
 disease <- emr_extract("dx.icd9_585", filter = "!ckd_in_past") 
