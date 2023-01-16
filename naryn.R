@@ -27,7 +27,7 @@
 # utility functions
 package_exists <- function(pkg) pkg %in% rownames(installed.packages())
 
-# install naryn if needed
+# install naryn if needed. naryn is on CRAN but due to environment problems on binder we preffer installing it from github
 if (!package_exists("naryn")) {
     remotes::install_github("tanaylab/naryn")    
 }
