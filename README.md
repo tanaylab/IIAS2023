@@ -6,12 +6,14 @@ This repository contains the material for Amos Tanay's lecture at the 5th Advanc
 
 ## Notebook
 
-The notebook is available both in Jupyter Notebook, R Markdown and plain R script. You can run it online using Binder by clicking on the badge above, or you can download and run it locally.
+The notebook is available both in Jupyter Notebook (`naryn.ipynb`), R Markdown (`naryn.Rmd`) and plain R script (`naryn.R`). You can run it online using [Binder](https://mybinder.org/v2/gh/tanaylab/IIAS2023/HEAD?labpath=naryn.ipynb), or you can download and run it locally.
 
 ## Links
 
 - [naryn](https://tanaylab.github.io/naryn/)
+- [WISER lab models](https://tanaylab.weizmann.ac.il/labs/)
 - [labNorm](https://tanaylab.github.io/labNorm/)
+- [Tanay group site](https://www.weizmann.ac.il/math/tanay/home)
 
 ## References
 
