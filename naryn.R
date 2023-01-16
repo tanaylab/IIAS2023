@@ -9,9 +9,9 @@
 #       format_version: '1.5'
 #       jupytext_version: 1.11.4
 #   kernelspec:
-#     display_name: R 4.0.3
+#     display_name: R 4.2.1
 #     language: R
-#     name: ir
+#     name: r_4.2.1
 # ---
 
 # # Getting started with naryn
@@ -22,11 +22,26 @@
 
 # + [markdown] tags=[]
 # ### Install packages if needed
+# -
+
+# utility functions
+ON_KAGGLE <- dir.exists("/kaggle")
+package_exists <- function(pkg) pkg %in% rownames(installed.packages())
+
+# install naryn if needed
+if (!package_exists("naryn")){
+    if (ON_KAGGLE){
+        install.packages("/kaggle/input/d/aviezerl/naryn-source-code/naryn_2.6.14_R_x86_64-pc-linux-gnu.savta", repos = NULL)
+    } else {
+        install.packages("naryn")
+    }
+}
 
 # + vscode={"languageId": "r"}
-required_packages <- c("naryn", "dplyr", "purrr", "ggplot2", "survminer", "survival", "cmprsk", "pROC", "xgboost")
+# install the rest of the packages
+required_packages <- c("dplyr", "purrr", "ggplot2", "survminer", "survival", "cmprsk", "pROC", "xgboost")
 for (pkg in required_packages){
-    if (!(pkg %in% rownames(installed.packages()))){
+    if (!package_exists(pkg)){
         install.packages(pkg)
     }
 }
@@ -45,15 +60,15 @@ theme_set(theme_classic())
 #
 # Towards this vignette we are going to use a small database which was simulated to include an example of a typical EMR database. It can be downloaded from [here](https://naryn.s3.eu-west-1.amazonaws.com/naryn_example_db.tar.gz) or using the following code:
 
-# + vscode={"languageId": "r"}
-if (!dir.exists("sample_db") && !dir.exists("/kaggle/input/simulated-ehr-dataset/sample_db")){
-    emr_download_example_data()
-}
-# -
-
-if (dir.exists("/kaggle/input/simulated-ehr-dataset/sample_db")){
-    db_dir <- "/kaggle/input/simulated-ehr-dataset/sample_db"
+if (ON_KAGGLE){
+    system("cp -r /kaggle/input/simulated-ehr-dataset/sample_db /kaggle/working/")
+    db_dir <- "/kaggle/working/sample_db"
+    emr_db.connect(db_dir)
+    emr_db.reload()
 } else {
+    if (!dir.exists("sample_db")){
+        emr_download_example_data()
+    }
     db_dir <- "sample_db"
 }
 
@@ -246,7 +261,7 @@ head(ckd_labs)
 
 # ### Value filters 
 
-# In addition to requiring that a data point exists in the *patient-time space* (like the previous example), filters may also be used to require specific value restreictions. For example, we can create a filter that includes only points where the latest 5-year Glucose was abnormal (say, above 100):
+# In addition to requiring that a data point exists in the *patient-time space* (like the previous example), filters may also be used to require specific value restrictions. For example, we can create a filter that includes only points where the latest 5-year Glucose was abnormal (say, above 100):
 
 # + vscode={"languageId": "r"}
 emr_filter.create("abnormal_glucose", "glucose_5y", val = 100, operator = ">")
