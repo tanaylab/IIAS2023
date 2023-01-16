@@ -25,16 +25,11 @@
 # -
 
 # utility functions
-ON_KAGGLE <- dir.exists("/kaggle")
 package_exists <- function(pkg) pkg %in% rownames(installed.packages())
 
 # install naryn if needed
 if (!package_exists("naryn")) {
-    if (ON_KAGGLE) {
-        install.packages("/kaggle/input/d/aviezerl/naryn-source-code/naryn_2.6.14_R_x86_64-pc-linux-gnu.savta", repos = NULL)
-    } else {
-        install.packages("naryn")
-    }
+    remotes::install_github("tanaylab/naryn")    
 }
 
 # + vscode={"languageId": "r"}
@@ -60,17 +55,10 @@ theme_set(theme_classic())
 #
 # Towards this vignette we are going to use a small database which was simulated to include an example of a typical EMR database. It can be downloaded from [here](https://naryn.s3.eu-west-1.amazonaws.com/naryn_example_db.tar.gz) or using the following code:
 
-if (ON_KAGGLE) {
-    system("cp -r /kaggle/input/simulated-ehr-dataset/sample_db /kaggle/working/")
-    db_dir <- "/kaggle/working/sample_db"
-    emr_db.connect(db_dir)
-    emr_db.reload()
-} else {
-    if (!dir.exists("sample_db")) {
-        emr_download_example_data()
-    }
-    db_dir <- "sample_db"
+if (!dir.exists("sample_db")) {
+    emr_download_example_data()
 }
+db_dir <- "sample_db"
 
 # Note that although smaller than the real database, this example database is still quite large (~1.2GB) and will take a few minutes to download.
 

@@ -1,0 +1,1 @@
+R -e "naryn::emr_download_example_data()"
