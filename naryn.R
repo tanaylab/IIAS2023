@@ -53,7 +53,7 @@ theme_set(theme_classic())
 
 # ### Download the example database 
 #
-# Towards this vignette we are going to use a small database which was simulated to include an example of a typical EMR database. It can be downloaded from [here](https://naryn.s3.eu-west-1.amazonaws.com/naryn_example_db.tar.gz) or using the following code:
+# Towards this vignette we are going to use a small database which was simulated to include an example of a typical EMR database. The simulation process sample patients birthdate and chronic diseases onset according to precomputed incidence rate from Clalit EHR (age/sex stratified). Following disease, survival time was sampled along with icd9 diagnosis and common lab measurements conditioned on disease status, stratified by age and sex. The database can be downloaded from [here](https://naryn.s3.eu-west-1.amazonaws.com/naryn_example_db.tar.gz) or using the following code:
 
 if (!dir.exists("sample_db")) {
     emr_download_example_data()
@@ -485,13 +485,13 @@ head(gen_pop_survival)
 
 # We can now compute the Kaplan-Meier survival curve. 
 #
-# We will start by combining the two data frames and reshape it to the format of the survival function. Note that we apply censoring to reflect the latest update of the database which was at Jan 1, 2021:
+# We will start by combining the two data frames and reshape it to the format of the survival function. Note that we apply censoring to reflect the latest update of the database which was at Jan 1, 2022:
 
 survival <- disease_survival %>%
     mutate(cohort = "disease") %>%
     bind_rows(gen_pop_survival %>% mutate(cohort = "general pop")) %>%
     mutate(
-        follow_time = ifelse(!is.na(survival), survival, (emr_date2time(1, 1, 2021) - time)),
+        follow_time = ifelse(!is.na(survival), survival, (emr_date2time(1, 1, 2022) - time)),
         status = ifelse(is.na(survival), 0, 1)
     ) %>%
     mutate(follow_time = follow_time / year())
@@ -543,7 +543,7 @@ head(time_to_outcome)
 
 time_to_outcome <- time_to_outcome %>%
     mutate(
-        follow_time = ifelse(!is.na(survival), survival, (emr_date2time(1, 1, 2021) - time)),
+        follow_time = ifelse(!is.na(survival), survival, (emr_date2time(1, 1, 2022) - time)),
         follow_time = ifelse(!is.na(time_to_disease), time_to_disease, follow_time),
         status = ifelse(!is.na(time_to_disease), 1, ifelse(!is.na(survival), 2, 0))
     ) %>%

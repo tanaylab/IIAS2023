@@ -6,7 +6,7 @@ This repository contains the material for Amos Tanay's lecture at the 5th Advanc
 
 ## Notebook
 
-The notebook is available both in Jupyter Notebook (`naryn.ipynb`), R Markdown (`naryn.Rmd`) and plain R script (`naryn.R`). You can run it online using [Binder](https://mybinder.org/v2/gh/tanaylab/IIAS2023/HEAD?labpath=naryn.ipynb), or you can download and run it locally.
+The notebook is available both in [Jupyter Notebook](naryn.ipynb), [R Markdown](naryn.Rmd) and [plain R script](naryn.R). You can run it online using [Binder](https://mybinder.org/v2/gh/tanaylab/IIAS2023/HEAD?labpath=naryn.ipynb), or you can download and run it locally.
 
 ## Links
 
