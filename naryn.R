@@ -9,9 +9,9 @@
 #       format_version: '1.5'
 #       jupytext_version: 1.11.4
 #   kernelspec:
-#     display_name: R 4.0.3
+#     display_name: R 4.2.1
 #     language: R
-#     name: ir
+#     name: r_4.2.1
 # ---
 
 # # Getting started with naryn
